@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ghost👻</title>
+    <script src="https://unpkg.co/gsap@3/dist/gsap.min.js"></script>
+    <script src="https://assets.codepen.io/16327/InertiaPlugin.min.js"></script>
+    <script src="https://unpkg.com/gsap@3/dist/Draggable.min.js"></script>
+    <script src="https://cdn.skypack.dev/dat.gui"></script>
+    <script src="https://cdn.skypack.dev/gsap"></script>
+    <script id="rendered-js" type="module">
+      import { GUI } from 'https://cdn.skypack.dev/dat.gui';
+      import gsap from 'https://cdn.skypack.dev/gsap';
+      
+      const {
+        Draggable,
+        InertiaPlugin } =
+      window;
+      
+      gsap.registerPlugin(InertiaPlugin);
+      
+      const CONFIG = {
+        explode: false,
+        ratio: 8,
+        glow: 30,
+        speed: 0.35 };
+      
+      
+      
+      const UPDATE = () => {
+        document.documentElement.style.setProperty('--ratio', CONFIG.ratio);
+        document.documentElement.style.setProperty('--glow-size', CONFIG.glow);
+        document.documentElement.style.setProperty('--speed', CONFIG.speed);
+      };
+
+      
+      UPDATE();
+      
+      let shakeReset;
+      let comparator;
+      let INERT_COUNT = 0;
+      let SHAKING = false;
+      const BOUNDS = 800;
+      const SHAKE_BOUND = 200;
+      const ROTATE = 25;
+      const SHAKE_THRESHOLD = 6;
+      const SHAKE_TIMEOUT = 500;
+      const BOO_TIMER = 2000;
+      const TIMING = {
+        TAILS: 1 };
+      
+      
+      gsap.set('.ghost__tails--two', { xPercent: -100 });
+      // Move pupils across 2 and down 2 to center: x: '+=2', y: '+=2'
+      gsap.set(['.ghost__eyes', '.ghost__mouth-clip', '.ghost__mouth-group'], {
+        transformOrigin: '50% 50%' });
+      
+      gsap.set('.ghost__pupil', { x: 0, y: 0, transformOrigin: '50% 50%' });
+      gsap.set(['.ghost__features--shook', '.ghost__boo-features'], { display: 'none' });
+      gsap.set('.ghost__tongue--shook', { yPercent: 50 });
+      gsap.set('.ghost__teeth', { scale: 1.15, transformOrigin: '50% 50%' });
+      
+      const AUDIO = {
+        PAC: new Audio('https://dl.prokerala.com/downloads/ringtones/files/mp3/kanchana-a-aaa-whatsapp-status-video-42296.mp3'),
+        BOO: new Audio('https://assets.codepen.io/605876/boo.mp3') };
+      
+      
+      AUDIO.BOO.volume = 0.5;
+      
+      const BLINK = () => {
+        const delay = gsap.utils.random(2, 6);
+        gsap.timeline().to('.ghost__eyes', {
+          delay,
+          onComplete: () => BLINK(),
+          scaleY: 0.1,
+          repeat: 3,
+          yoyo: true,
+          duration: 0.05 });
+      
+      };
+      
+      BLINK();
+      
+      let direction = 'left';
+      let ghosting = false;
+      const GHOST_DRAG = document.querySelector('.ghost__drag');
+      let booTimer;
+      GHOST_DRAG.addEventListener('dblclick', () => {
+        if (!ghosting) {
+          AUDIO.BOO.play();
+          gsap.set('.ghost__boo-features', { display: 'block' });
+          if (booTimer) clearTimeout(booTimer);
+          booTimer = setTimeout(() => {
+            gsap.set('.ghost__boo-features', { display: 'none' });
+          }, BOO_TIMER);
+        }
+      });
+      
+      Draggable.create(GHOST_DRAG, {
+        type: 'x,y',
+        trigger: GHOST_DRAG,
+        allowContextMenu: true,
+        inertia: true,
+        bounds: document.body,
+        dragResistance: 0.25,
+        onDrag: function () {
+          gsap.set(GHOST_DRAG, {
+            x: this.x,
+            y: this.y });
+      
+          const INE_X = InertiaPlugin.getVelocity(GHOST_DRAG, 'x');
+          const MOM_X = gsap.utils.clamp(-BOUNDS, BOUNDS, INE_X);
+          const rotation = gsap.utils.mapRange(-BOUNDS, BOUNDS, ROTATE, -ROTATE, MOM_X);
+      
+          gsap.to(GHOST_DRAG, {
+            rotation,
+            duration: 0.25 });
+      
+          gsap.to('.ghost', {
+            skewX: rotation * 0.5,
+            duration: 0.25 });
+      
+      
+          // Handle changing tails direction
+          const currentDirection = this.getDirection();
+          if (
+          currentDirection !== direction && currentDirection === 'left' ||
+          currentDirection === 'right')
+          {
+            direction = currentDirection;
+            if (direction === 'right') {
+              // Update direction
+              document.documentElement.style.setProperty('--direction', 'reverse');
+            } else {
+              // Update direction
+              document.documentElement.style.setProperty('--direction', 'normal');
+            }
+          }
+      
+          if (
+          (INE_X < -SHAKE_BOUND || INE_X > SHAKE_BOUND) && !SHAKING ||
+          SHAKING && comparator(INE_X))
+          {
+            SHAKING = true;
+            INERT_COUNT += 1;
+            if (INERT_COUNT > 2) {
+              gsap.set('.ghost__features--shook', { display: 'block' });
+              gsap.set(['.ghost__eyes', '.ghost__mouth-group', '.ghost__boo-features'], { display: 'none' });
+            }
+            // Need to create a way of mapping the opposite
+            if (INE_X < -SHAKE_BOUND) {
+              // The next value must be INE_X > SHAKE_BOUND
+              // Create a function
+              comparator = val => val > SHAKE_BOUND;
+            } else {
+              comparator = val => val < -SHAKE_BOUND;
+            }
+      
+            if (shakeReset) clearTimeout(shakeReset);
+            shakeReset = setTimeout(() => {
+              INERT_COUNT = 0;
+              SHAKING = false;
+              shakeReset = null;
+            }, SHAKE_TIMEOUT);
+          }
+        },
+        onDragEnd: () => {
+          gsap.set('.ghost__features--shook', { display: 'none' });
+          gsap.set(['.ghost__eyes', '.ghost__mouth-group'], { display: 'block' });
+          if (INERT_COUNT > SHAKE_THRESHOLD) {
+            gsap.timeline({
+              onStart: () => {
+                gsap.set('.ghost__drag', { '--glow': '#de2121' });
+                document.documentElement.style.setProperty('--speed', 0.2);
+                ghosting = true;
+                AUDIO.PAC.play();
+                gsap.set('.ghost__boo-features', { display: 'none' });
+                gsap.set('.ghost__body', {
+                  fill: '#de2121' });
+      
+              } }).
+      
+            to(document.documentElement, {
+              '--light': 0 });
+      
+            gsap.set(['.ghost__tongue', '.ghost__cheeks'], { display: 'none' });
+            gsap.set(['.ghost__eyes', '.ghost__mouth'], { fill: 'yellow' });
+            gsap.set('.ghost__mouth-group', { rotation: 180 });
+          }
+      
+          // RESET
+          gsap.to(GHOST_DRAG, {
+            duration: 0.25,
+            rotation: 0 });
+      
+          gsap.to('.ghost', {
+            skewX: 0,
+            duration: 0.25 });
+      
+        } });
+      
+      
+      AUDIO.PAC.addEventListener('ended', () => {
+        gsap.timeline({
+          onStart: () => {
+            gsap.set('.ghost__drag', { '--glow': 'white' });
+            document.documentElement.style.setProperty('--speed', CONFIG.speed);
+          },
+          onComplete: () => {
+            ghosting = false;
+          } }).
+      
+        to(
+        document.documentElement,
+        {
+          '--light': 10 },
+      
+        0);
+      
+        gsap.set('.ghost__body', {
+          fill: 'white' });
+      
+        gsap.set(['.ghost__tongue', '.ghost__cheeks'], { display: 'block' });
+        gsap.set(['.ghost__eyes', '.ghost__mouth'], { fill: 'black' });
+        gsap.set('.ghost__mouth-group', { rotation: 0 });
+      });
+      
+      gsap.set('.ghost__drag', {
+        display: 'block' });
+      //# sourceURL=pen.js
+          </script>
+    
+</head>
+<body>
+<div class="scene">
+  <div class="ghost__drag">
+    <div class="primary__wrapper">
+      <div class="primary">
+        <svg xmlns="http://www.w3.org/2000/svg" class="ghost" viewBox="0 0 87.69 133.803">
+          <defs>
+            <clipPath id="mouthClip">
+              <circle class="ghost__mouth-clip" cx="43.845000" cy="50.5" r="10"></circle>
+            </clipPath>
+            <clipPath id="shookClip">
+              <ellipse cx="43.7964" cy="51.6723" rx="4" ry="4" />
+            </clipPath>
+          </defs>
+          <g class="ghost__ghost">
+            <g class="ghost__body-wrapper">
+              <path class="ghost__body" d="M43.845 0C19.555 0 0 16.028 0 49.742v81.416c0 .887.017 1.768.043 2.645h87.604c.027-.877.043-1.758.043-2.645V49.742C87.69 16.028 68.135 0 43.845 0z" />
+            </g>
+            <g class="ghost__features--shook">
+              <ellipse cx="43.7964" cy="51.6723" rx="4" ry="4" fill="black" />
+              <g clip-path="url(#shookClip)">
+                <path class="ghost__tongue--shook" fill="red" d="M46.276 50.864a2.91 2.91 0 00-2.91 2.91 2.91 2.91 0 00.151.917 6.147 6.147 0 003.402-.81 6.147 6.147 0 001.833-1.633 2.91 2.91 0 00-2.476-1.384z" />
+              </g>
+              <path d="M13.0777 42.6763L21.8369 45.7902L13.0777 48.6123" fill="none" stroke="black" stroke-width="2" stroke-linejoin="round" />
+              <path d="M74.8678 48.4368L65.8635 46.1247L74.3328 42.525" fill="none" stroke="black" stroke-width="2" stroke-linejoin="round" />
+            </g>
+            <g class="ghost__eyes">
+              <g class="ghost__eye" transform="translate(-14.366 -64.075)">
+                <circle r="5.292" cy="109.431" cx="31.751" />
+                <circle class="ghost__pupil" cx="29.751" cy="107.431" r="1.323" />
+              </g>
+              <g class="ghost__eye" transform="translate(38.553 -64.075)">
+                <circle cx="31.751" cy="109.431" r="5.292" />
+                <circle class="ghost__pupil" r="1.323" cy="107.431" cx="29.751" />
+              </g>
+            </g>
+            <g class="ghost__cheeks" transform="translate(-14.526 -64.075)">
+              <circle cx="23.226" cy="117.689" r="2.646" />
+              <circle r="2.646" cy="117.689" cx="93.517" />
+            </g>
+            <g class="ghost__mouth-group" clip-path="url(#mouthClip)">
+              <path class="ghost__mouth" d="M49.992 48.558a6.147 6.147 0 01-3.073 5.323 6.147 6.147 0 01-6.147 0 6.147 6.147 0 01-3.074-5.323h6.147z" />
+              <path class="ghost__tongue" d="M46.276 50.864a2.91 2.91 0 00-2.91 2.91 2.91 2.91 0 00.151.917 6.147 6.147 0 003.402-.81 6.147 6.147 0 001.833-1.633 2.91 2.91 0 00-2.476-1.384z" />
+            </g>
+            <g class="ghost__boo-features">
+              <path class="ghost__teeth" d="M39.235 51.373l1.537-2.116 1.536 2.116 1.537-2.116 1.537 2.116 1.537-2.116 1.537 2.116 1.536-2.815H37.698z" />
+              <path class="ghost__brow" d="M22.944 39.021c0 1.297-1.06 2.495-2.78 3.144-1.72.648-3.838.648-5.558 0-1.72-.649-2.78-1.847-2.78-3.144" stroke-width=".756" stroke-linecap="round" stroke-linejoin="round" />
+              <path class="ghost__brow" d="M75.863 39.02c0 1.298-1.059 2.497-2.779 3.146-1.72.65-3.839.65-5.559 0-1.72-.649-2.779-1.848-2.779-3.147" stroke-width=".757" stroke-linecap="round" stroke-linejoin="round" />
+            </g>
+          </g>
+        </svg>
+      </div>
+    </div>
+    <div class="mask">
+      <svg xmlns="http://www.w3.org/2000/svg" class="ghost" viewBox="0 0 87.69 133.803">
+        <defs>
+          <clipPath id="mouthClip">
+            <circle class="ghost__mouth-clip" cx="43.845000" cy="50.5" r="10"></circle>
+          </clipPath>
+          <clipPath id="shookClip">
+            <ellipse cx="43.7964" cy="51.6723" rx="4" ry="4" />
+          </clipPath>
+        </defs>
+        <g class="ghost__ghost">
+          <g class="ghost__body-wrapper">
+            <path class="ghost__body" d="M43.845 0C19.555 0 0 16.028 0 49.742v81.416c0 .887.017 1.768.043 2.645h87.604c.027-.877.043-1.758.043-2.645V49.742C87.69 16.028 68.135 0 43.845 0z" />
+          </g>
+          <g class="ghost__features--shook">
+            <ellipse cx="43.7964" cy="51.6723" rx="4" ry="4" fill="black" />
+            <g clip-path="url(#shookClip)">
+              <path class="ghost__tongue--shook" fill="red" d="M46.276 50.864a2.91 2.91 0 00-2.91 2.91 2.91 2.91 0 00.151.917 6.147 6.147 0 003.402-.81 6.147 6.147 0 001.833-1.633 2.91 2.91 0 00-2.476-1.384z" />
+            </g>
+            <path d="M13.0777 42.6763L21.8369 45.7902L13.0777 48.6123" fill="none" stroke="black" stroke-width="2" stroke-linejoin="round" />
+            <path d="M74.8678 48.4368L65.8635 46.1247L74.3328 42.525" fill="none" stroke="black" stroke-width="2" stroke-linejoin="round" />
+          </g>
+          <g class="ghost__eyes">
+            <g class="ghost__eye" transform="translate(-14.366 -64.075)">
+              <circle r="5.292" cy="109.431" cx="31.751" />
+              <circle class="ghost__pupil" cx="29.751" cy="107.431" r="1.323" />
+            </g>
+            <g class="ghost__eye" transform="translate(38.553 -64.075)">
+              <circle cx="31.751" cy="109.431" r="5.292" />
+              <circle class="ghost__pupil" r="1.323" cy="107.431" cx="29.751" />
+            </g>
+          </g>
+          <g class="ghost__cheeks" transform="translate(-14.526 -64.075)">
+            <circle cx="23.226" cy="117.689" r="2.646" />
+            <circle r="2.646" cy="117.689" cx="93.517" />
+          </g>
+          <g class="ghost__mouth-group" clip-path="url(#mouthClip)">
+            <path class="ghost__mouth" d="M49.992 48.558a6.147 6.147 0 01-3.073 5.323 6.147 6.147 0 01-6.147 0 6.147 6.147 0 01-3.074-5.323h6.147z" />
+            <path class="ghost__tongue" d="M46.276 50.864a2.91 2.91 0 00-2.91 2.91 2.91 2.91 0 00.151.917 6.147 6.147 0 003.402-.81 6.147 6.147 0 001.833-1.633 2.91 2.91 0 00-2.476-1.384z" />
+          </g>
+          <g class="ghost__boo-features">
+            <path class="ghost__teeth" d="M39.235 51.373l1.537-2.116 1.536 2.116 1.537-2.116 1.537 2.116 1.537-2.116 1.537 2.116 1.536-2.815H37.698z" />
+            <path class="ghost__brow" d="M22.944 39.021c0 1.297-1.06 2.495-2.78 3.144-1.72.648-3.838.648-5.558 0-1.72-.649-2.78-1.847-2.78-3.144" stroke-width=".756" stroke-linecap="round" stroke-linejoin="round" />
+            <path class="ghost__brow" d="M75.863 39.02c0 1.298-1.059 2.497-2.779 3.146-1.72.65-3.839.65-5.559 0-1.72-.649-2.779-1.848-2.779-3.147" stroke-width=".757" stroke-linecap="round" stroke-linejoin="round" />
+          </g>
+        </g>
+      </svg>
+    </div>
+    <div class="mask">
+      <svg xmlns="http://www.w3.org/2000/svg" class="ghost" viewBox="0 0 87.69 133.803">
+        <defs>
+          <clipPath id="mouthClip">
+            <circle class="ghost__mouth-clip" cx="43.845000" cy="50.5" r="10"></circle>
+          </clipPath>
+          <clipPath id="shookClip">
+            <ellipse cx="43.7964" cy="51.6723" rx="4" ry="4" />
+          </clipPath>
+        </defs>
+        <g class="ghost__ghost">
+          <g class="ghost__body-wrapper">
+            <path class="ghost__body" d="M43.845 0C19.555 0 0 16.028 0 49.742v81.416c0 .887.017 1.768.043 2.645h87.604c.027-.877.043-1.758.043-2.645V49.742C87.69 16.028 68.135 0 43.845 0z" />
+          </g>
+          <g class="ghost__features--shook">
+            <ellipse cx="43.7964" cy="51.6723" rx="4" ry="4" fill="black" />
+            <g clip-path="url(#shookClip)">
+              <path class="ghost__tongue--shook" fill="red" d="M46.276 50.864a2.91 2.91 0 00-2.91 2.91 2.91 2.91 0 00.151.917 6.147 6.147 0 003.402-.81 6.147 6.147 0 001.833-1.633 2.91 2.91 0 00-2.476-1.384z" />
+            </g>
+            <path d="M13.0777 42.6763L21.8369 45.7902L13.0777 48.6123" fill="none" stroke="black" stroke-width="2" stroke-linejoin="round" />
+            <path d="M74.8678 48.4368L65.8635 46.1247L74.3328 42.525" fill="none" stroke="black" stroke-width="2" stroke-linejoin="round" />
+          </g>
+          <g class="ghost__eyes">
+            <g class="ghost__eye" transform="translate(-14.366 -64.075)">
+              <circle r="5.292" cy="109.431" cx="31.751" />
+              <circle class="ghost__pupil" cx="29.751" cy="107.431" r="1.323" />
+            </g>
+            <g class="ghost__eye" transform="translate(38.553 -64.075)">
+              <circle cx="31.751" cy="109.431" r="5.292" />
+              <circle class="ghost__pupil" r="1.323" cy="107.431" cx="29.751" />
+            </g>
+          </g>
+          <g class="ghost__cheeks" transform="translate(-14.526 -64.075)">
+            <circle cx="23.226" cy="117.689" r="2.646" />
+            <circle r="2.646" cy="117.689" cx="93.517" />
+          </g>
+          <g class="ghost__mouth-group" clip-path="url(#mouthClip)">
+            <path class="ghost__mouth" d="M49.992 48.558a6.147 6.147 0 01-3.073 5.323 6.147 6.147 0 01-6.147 0 6.147 6.147 0 01-3.074-5.323h6.147z" />
+            <path class="ghost__tongue" d="M46.276 50.864a2.91 2.91 0 00-2.91 2.91 2.91 2.91 0 00.151.917 6.147 6.147 0 003.402-.81 6.147 6.147 0 001.833-1.633 2.91 2.91 0 00-2.476-1.384z" />
+          </g>
+          <g class="ghost__boo-features">
+            <path class="ghost__teeth" d="M39.235 51.373l1.537-2.116 1.536 2.116 1.537-2.116 1.537 2.116 1.537-2.116 1.537 2.116 1.536-2.815H37.698z" />
+            <path class="ghost__brow" d="M22.944 39.021c0 1.297-1.06 2.495-2.78 3.144-1.72.648-3.838.648-5.558 0-1.72-.649-2.78-1.847-2.78-3.144" stroke-width=".756" stroke-linecap="round" stroke-linejoin="round" />
+            <path class="ghost__brow" d="M75.863 39.02c0 1.298-1.059 2.497-2.779 3.146-1.72.65-3.839.65-5.559 0-1.72-.649-2.779-1.848-2.779-3.147" stroke-width=".757" stroke-linecap="round" stroke-linejoin="round" />
+          </g>
+        </g>
+      </svg>
+    </div>
+  </div>
+</div>
+</body>
+<style>
+
+* {
+  box-sizing: border-box;
+}
+body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: hsl(var(--hue, 0), 0%, calc(var(--light, 6) * 1%));
+  min-height: 100vh;
+  overflow: hidden;
+}
+h1 {
+  margin: 0;
+  position: fixed;
+  bottom: 1rem;
+  right: 1rem;
+  color: #592673;
+  font-family: sans-serif;
+  font-size: 2rem;
+  user-select: none;
+}
+.primary {
+  filter: drop-shadow(0 0 calc(var(--glow-size, 30) * 1px) var(--glow, #fff));
+  transition: filter 0.2s;
+}
+.ghost {
+  --size: 300px;
+  height: var(--size);
+  overflow: visible !important;
+}
+.ghost__drag {
+  display: none;
+}
+.ghost__cheeks {
+  fill: #f7baba;
+}
+.ghost__pupil {
+  fill: #fff;
+}
+.ghost__body {
+  fill: #fff;
+}
+.ghost__teeth {
+  fill: #fff;
+}
+.ghost__brow {
+  fill: #fff;
+  stroke: #1a1a1a;
+}
+.ghost__tongue {
+  fill: #e61919;
+}
+.ghost__teeth,
+.ghost__brow {
+  stroke: none;
+}
+
+.ghost {
+  --cut: calc(var(--ratio, 8) * 1px);
+  mask:
+    radial-gradient(var(--cut) at bottom, transparent 97%, black),
+    radial-gradient(var(--cut) at 25% 50%, black 97%, transparent);
+  mask-repeat: repeat-x;
+  mask-size:
+    calc(2 * var(--cut)) 100%,
+    calc(4 * var(--cut)) calc(2 * var(--cut));
+  mask-position:
+    50% calc(100% - var(--cut)),
+    calc(50% - var(--cut)) 99%;
+  animation: flow calc(var(--speed, 0.35) * 1s) infinite linear var(--direction, normal);
+}
+
+@keyframes flow {
+  to {
+    mask-position:
+      calc(50% + (var(--cut) * 4)) calc(100% - var(--cut)),
+      calc((50% - var(--cut)) + (var(--cut) * 4)) 99%;
+  }
+}
+
+@keyframes flow-bottom {
+  to {
+    mask-position:
+      calc((50% - var(--cut)) + (var(--cut) * 4)) 99%;
+  }
+}
+
+.ghost__drag > .mask {
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+
+* {
+  transform-style: preserve-3d;
+}
+.scene {
+  transition: 0.2s;
+}
+
+[data-exploded] {
+  --exploded: 1;
+}
+
+[data-exploded] .scene {
+  transform: rotateX(-20deg) rotateY(-45deg);
+}
+
+.ghost__drag > .mask .ghost {
+  opacity: var(--exploded, 0);
+  transition: transform 0.2s, opacity 0.2s;
+}
+.ghost__drag > .mask:nth-of-type(2) .ghost {
+  mask:
+    radial-gradient(var(--cut) at bottom, transparent 97%, black);
+  mask-repeat: repeat-x;
+  mask-size:
+    calc(2 * var(--cut)) 100%;
+  mask-position:
+    50% calc(100% - var(--cut));
+}
+
+.ghost__drag > .mask:nth-of-type(3) .ghost {
+  mask:
+    radial-gradient(var(--cut) at 25% 50%, black 97%, transparent);
+  mask-repeat: repeat-x;
+  mask-size:
+    calc(4 * var(--cut)) calc(2 * var(--cut));
+  mask-position:
+    calc(50% - var(--cut)) 99%;
+  animation: flow-bottom calc(var(--speed, 0.35) * 1s) infinite linear var(--direction, normal);
+}
+
+.ghost__drag > .primary__wrapper {
+  transform: translate3d(0, 0, 0);
+}
+
+.primary__wrapper {
+  transition: opacity 0.2s, transform 0.2s;
+}
+.primary { 
+  opacity: calc(1 - (var(--exploded, 0) * 0.5));
+}
+
+.primary__wrapper::after {
+  content: 'Result';
+}
+
+.mask:nth-of-type(2)::after {
+  content: "Mask Two"
+}
+.mask:nth-of-type(3)::after {
+  content: "Mask One";
+}
+
+[data-exploded] .mask:nth-of-type(3) {
+  transition: transform 1s 1.5s;
+  transform: translate3d(0, 0, 120px);
+}
+
+.primary__wrapper::after,
+.mask:nth-of-type(2)::after,
+.mask:nth-of-type(3)::after {
+  color: transparent;
+  font-weight: 300;
+  font-size: 2rem;
+  background: linear-gradient(white, gray);
+  background-clip: text;
+  position: absolute;
+  left: calc(100% + 3rem);
+  bottom: 0%;
+  translate: 0 0;
+  white-space: nowrap;
+  opacity: var(--exploded, 0);
+  transition: opacity 0.2s;
+}
+
+[data-exploded] .scene {
+  transition: transform 1s;
+}
+[data-exploded] .mask:nth-of-type(3),
+[data-exploded] .primary__wrapper {
+  transition: transform 1s 1.5s;
+}
+[data-exploded] .primary__wrapper {
+  transform: translate3d(0, 0, -120px);
+}
+[data-exploded] .primary__wrapper::after,
+[data-exploded] .mask:nth-of-type(2)::after,
+[data-exploded] .mask:nth-of-type(3)::after {
+  transition: opacity 1s 3s;
+}
+
+[data-exploded] .primary {
+  transition: transform 1s 1.5s, opacity 1s 1.5s;
+}
+
+[data-exploded] .mask:nth-of-type(2) .ghost,
+[data-exploded] .mask:nth-of-type(3) .ghost {
+  transition: opacity 0s;
+}
+
+.primary__wrapper::after,
+.mask:nth-of-type(2)::after,
+.mask:nth-of-type(3)::after {
+  transition: opacity 1s;
+}
+
+.mask:nth-of-type(3),
+.mask:nth-of-type(2) .ghost,
+.mask:nth-of-type(3) .ghost {
+  transition: transform 1s 1.5s, opacity 1s 2s;
+}
+
+.primary {
+  transition: opacity 1s 1.5s;
+}
+
+.primary__wrapper {
+  transition: transform 1s 1.5s, opacity 0.2s 3s;
+}
+
+.scene {
+  transition: transform 1s 3s;
+}
+</style>
+<script>
+import confetti from 'https://cdn.skypack.dev/canvas-confetti';
+confetti();
+import { GUI } from 'https://cdn.skypack.dev/dat.gui'
+import gsap from 'https://cdn.skypack.dev/gsap'
+
+const {
+  Draggable,
+  InertiaPlugin,
+} = window
+
+gsap.registerPlugin(InertiaPlugin)
+
+const CONFIG = {
+  explode: false,
+  ratio: 8,
+  glow: 30, 
+  speed: 0.35,
+}
+
+
+UPDATE()
+
+let shakeReset
+let comparator
+let INERT_COUNT = 0
+let SHAKING = false
+const BOUNDS = 800
+const SHAKE_BOUND = 200
+const ROTATE = 25
+const SHAKE_THRESHOLD = 6
+const SHAKE_TIMEOUT = 500
+const BOO_TIMER = 2000
+const TIMING = {
+  TAILS: 1,
+}
+
+gsap.set('.ghost__tails--two', { xPercent: -100 })
+// Move pupils across 2 and down 2 to center: x: '+=2', y: '+=2'
+gsap.set(['.ghost__eyes', '.ghost__mouth-clip', '.ghost__mouth-group'], {
+  transformOrigin: '50% 50%',
+})
+gsap.set('.ghost__pupil', { x: 0, y: 0, transformOrigin: '50% 50%' })
+gsap.set(['.ghost__features--shook', '.ghost__boo-features'], { display: 'none' })
+gsap.set('.ghost__tongue--shook', { yPercent: 50 })
+gsap.set('.ghost__teeth', { scale: 1.15, transformOrigin: '50% 50%'})
+
+
+AUDIO.BOO.volume = 0.5
+
+const BLINK = () => {
+  const delay = gsap.utils.random(2, 6)
+  gsap.timeline().to('.ghost__eyes', {
+    delay,
+    onComplete: () => BLINK(),
+    scaleY: 0.1,
+    repeat: 3,
+    yoyo: true,
+    duration: 0.05,
+  })
+}
+
+BLINK()
+
+let direction = 'left'
+let ghosting = false
+const GHOST_DRAG = document.querySelector('.ghost__drag')
+let booTimer
+GHOST_DRAG.addEventListener('dblclick', () => {
+  if (!ghosting) {
+    AUDIO.BOO.play()
+    gsap.set('.ghost__boo-features', { display: 'block' })
+    if (booTimer) clearTimeout(booTimer)
+    booTimer = setTimeout(() => {
+      gsap.set('.ghost__boo-features', { display: 'none' })
+    }, BOO_TIMER)
+  }
+})
+
+Draggable.create(GHOST_DRAG, {
+  type: 'x,y',
+  trigger: GHOST_DRAG,
+  allowContextMenu: true,
+  inertia: true,
+  bounds: document.body,
+  dragResistance: 0.25,
+  onDrag: function() {
+    gsap.set(GHOST_DRAG, {
+      x: this.x,
+      y: this.y,
+    })
+    const INE_X = InertiaPlugin.getVelocity(GHOST_DRAG, 'x')
+    const MOM_X = gsap.utils.clamp(-BOUNDS, BOUNDS, INE_X)
+    const rotation = gsap.utils.mapRange(-BOUNDS, BOUNDS, ROTATE, -ROTATE, MOM_X)
+
+    gsap.to(GHOST_DRAG, {
+      rotation,
+      duration: 0.25,
+    })
+    gsap.to('.ghost', {
+      skewX: rotation * 0.5,
+      duration: 0.25,
+    })
+
+    // Handle changing tails direction
+    const currentDirection = this.getDirection()
+    if (
+      (currentDirection !== direction && currentDirection === 'left') ||
+      currentDirection === 'right'
+    ) {
+      direction = currentDirection
+      if (direction === 'right') {
+        // Update direction
+        document.documentElement.style.setProperty('--direction', 'reverse')
+      } else {
+        // Update direction
+        document.documentElement.style.setProperty('--direction', 'normal')
+      }
+    }
+
+    if (
+      ((INE_X < -SHAKE_BOUND || INE_X > SHAKE_BOUND) && !SHAKING) ||
+      (SHAKING && comparator(INE_X))
+    ) {
+      SHAKING = true
+      INERT_COUNT += 1
+      if (INERT_COUNT > 2) {
+        gsap.set('.ghost__features--shook', { display: 'block' })
+        gsap.set(['.ghost__eyes', '.ghost__mouth-group', '.ghost__boo-features'], { display: 'none' })
+      }
+      // Need to create a way of mapping the opposite
+      if (INE_X < -SHAKE_BOUND) {
+        // The next value must be INE_X > SHAKE_BOUND
+        // Create a function
+        comparator = val => val > SHAKE_BOUND
+      } else {
+        comparator = val => val < -SHAKE_BOUND
+      }
+
+      if (shakeReset) clearTimeout(shakeReset)
+      shakeReset = setTimeout(() => {
+        INERT_COUNT = 0
+        SHAKING = false
+        shakeReset = null
+      }, SHAKE_TIMEOUT)
+    }
+  },
+  onDragEnd: () => {
+    gsap.set('.ghost__features--shook', { display: 'none' })
+    gsap.set(['.ghost__eyes', '.ghost__mouth-group'], { display: 'block' })
+    if (INERT_COUNT > SHAKE_THRESHOLD) {
+      gsap.timeline({
+        onStart: () => {
+          gsap.set('.ghost__drag', {'--glow': '#2121DE' })
+          document.documentElement.style.setProperty('--speed', 0.2)
+          ghosting = true
+          AUDIO.PAC.play()
+          gsap.set('.ghost__boo-features', { display: 'none' })
+          gsap.set('.ghost__body', {
+            fill: '#2121DE',
+          })
+        },
+      })
+        .to(document.documentElement, {
+          '--light': 0,
+        })
+      gsap.set(['.ghost__tongue', '.ghost__cheeks'], { display: 'none' })
+      gsap.set(['.ghost__eyes', '.ghost__mouth'], { fill: 'yellow' })
+      gsap.set('.ghost__mouth-group', { rotation: 180 })
+    }
+
+    // RESET
+    gsap.to(GHOST_DRAG, {
+      duration: 0.25,
+      rotation: 0,
+    })
+    gsap.to('.ghost', {
+      skewX: 0,
+      duration: 0.25,
+    })
+  },
+})
+
+AUDIO.PAC.addEventListener('ended', () => {
+  gsap.timeline({
+    onStart: () => {
+      gsap.set('.ghost__drag', {'--glow': 'white' })
+      document.documentElement.style.setProperty('--speed', CONFIG.speed)
+    },
+    onComplete: () => {
+      ghosting = false
+    }
+  })
+    .to(
+      document.documentElement,
+      {
+        '--light': 10,
+      },
+      0
+    )
+  gsap.set('.ghost__body', {
+    fill: 'white',
+  })
+  gsap.set(['.ghost__tongue', '.ghost__cheeks'], { display: 'block' })
+  gsap.set(['.ghost__eyes', '.ghost__mouth'], { fill: 'black' })
+  gsap.set('.ghost__mouth-group', { rotation: 0 })
+})
+
+gsap.set('.ghost__drag', {
+  display: 'block'
+})
+</script>
+</html>
