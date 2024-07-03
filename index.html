@@ -6,6 +6,7 @@
     <title>Pei👻</title>
 </head>
 <body>
+    <h1 style= "color: #fbfbfb; font-size: 500%;">BE A POSITIVE GHOST</h1>
     <div class="scene-container stars-out" tabindex="1">
         <div class="ghost-container">
           <div class="ghost">
@@ -51,6 +52,9 @@
           <div class="shadow-bottom"></div>
         </div>
       </div>
+      <audio class="bark" src="baby.mp3"></audio>
+    
+
 </body>
 <style>
 
@@ -122,7 +126,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #0c0c0c;
+  background-color: #282626;
 }
 
 .scene-container {
@@ -143,6 +147,7 @@ body {
 
 .ghost-container {
   position: relative;
+  
   width: 80px;
   height: 140px;
   padding: 20px 30px 0 30px;
@@ -166,7 +171,7 @@ body {
   height: 0;
   padding-top: 100%;
   border-radius: 100%;
-  background-color: #F0EFDC;
+  background-color: #fffffd;
 }
 .ghost-head .ghost-face {
   position: absolute;
@@ -250,7 +255,7 @@ body {
   top: 0;
   width: 12px;
   height: 4px;
-  background-color: #F5C1B6;
+  background-color: #fd78c3;
   border-radius: 100%;
 }
 .cheek.left {
@@ -266,13 +271,13 @@ body {
   height: 0;
   width: 80px;
   padding-top: 85%;
-  background-color: #F0EFDC;
+  background-color: #fefefe;
 }
 
 .ghost-hand {
   height: 36px;
   width: 22px;
-  background: #F0EFDC;
+  background: #fbfbfa;
   border-radius: 100%/90%;
   position: absolute;
 }
@@ -307,7 +312,7 @@ body {
   border-radius: 100%;
 }
 .ghost-skirt .pleat.down {
-  background-color: #F0EFDC;
+  background-color: #fafafa;
 }
 .ghost-skirt .pleat.up {
   background-color: #292B25;
@@ -329,7 +334,7 @@ body {
   left: 0;
   width: 100%;
   height: 8px;
-  background-color: #1B1D18;
+  background-color: #000000;
   border-radius: 100%;
   z-index: -1;
 }
@@ -351,7 +356,7 @@ body {
   left: 0;
   bottom: 0;
   border-radius: 100%;
-  background-color: #1B1D18;
+  background-color: #000000;
   z-index: 2;
 }
 
@@ -394,13 +399,13 @@ body {
   transform: skewY(-60deg);
 }
 .star.orange .star-element, .star.orange .star-element:before, .star.orange .star-element:after {
-  background-color: #DF814D;
+  background-color: #e0763d;
 }
 .star.yellow .star-element, .star.yellow .star-element:before, .star.yellow .star-element:after {
-  background-color: #FFD186;
+  background-color: #25f9f9;
 }
 .star.blue .star-element, .star.blue .star-element:before, .star.blue .star-element:after {
-  background-color: #83D0BC;
+  background-color: #fa3792;
 }
 
 .star-1 {
@@ -694,6 +699,9 @@ let ghost = new Ghost(document.querySelector('.scene-container'));
 ghost.hover();
 ghost.startActivity();
 ghost.prepareEscape();
+const barkSnd = document.querySelector('.bark')
+window.onclick = ()=> barkSnd.play()
+
 
 
 </script>
